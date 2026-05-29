@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from database.db_connect import get_db, db_session
 from database.models import Scholarship, SystemStatus
@@ -24,11 +24,21 @@ async def run_sync_task():
 
 @router.post('/sync',
              summary="Trigger Scholarship Synchronization",
-             description="手動觸發背景作業，將中央大學獎學金暨工讀管理系統的最新資訊同步至本地資料庫。該操作不會阻塞連線。",
-             response_description="回傳同步任務的啟動狀態")
-async def manual_sync_scholarships(background_tasks: BackgroundTasks):
-    background_tasks.add_task(run_sync_task)
-    return {"status": "sync_started", "message": "Scholarship synchronization has started in the background."}
+             description="觸發將中央大學獎學金暨工讀管理系統的最新資訊同步至本地資料庫。可選擇是否在背景執行。",
+             response_description="回傳同步任務的執行或啟動狀態")
+async def manual_sync_scholarships(background_tasks: BackgroundTasks, background: bool = Query(True, description="是否在背景執行")):
+    if background:
+        background_tasks.add_task(run_sync_task)
+        return {"status": "sync_started", "message": "Scholarship synchronization has started in the background."}
+    else:
+        try:
+            with db_session() as db:
+                logger.info("Synchronous scholarship sync started from endpoint.")
+                await sync_scholarships_to_db(db)
+            return {"status": "success", "message": "Scholarship synchronization completed successfully."}
+        except Exception as e:
+            logger.error(f"Synchronous scholarship sync failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Synchronization failed: {str(e)}")
 
 @router.get('',
             response_model=ScholarshipResult,
