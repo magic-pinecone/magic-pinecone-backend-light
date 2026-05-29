@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
+from pydantic import model_validator, field_validator
 
 class Settings(BaseSettings):
     db_user: str
@@ -8,6 +8,13 @@ class Settings(BaseSettings):
     db_port: int = 5432
     db_name: str
     db_max_connections: int = 5
+
+    @field_validator("db_port", mode="before")
+    @classmethod
+    def empty_str_to_default_port(cls, v):
+        if v == "" or v is None:
+            return 5432
+        return v
 
     # Environment mode
     app_env: str = "development"
