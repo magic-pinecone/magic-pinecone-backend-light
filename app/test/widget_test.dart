@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:magic_pinecone_course_demo/core/app/app_theme.dart';
-import 'package:magic_pinecone_course_demo/features/course_selection/data/course_repository.dart';
-import 'package:magic_pinecone_course_demo/features/course_selection/data/course_selection_storage.dart';
-import 'package:magic_pinecone_course_demo/features/course_selection/data/course_share_codec.dart';
-import 'package:magic_pinecone_course_demo/features/course_selection/data/course_supplemental_detail_catalog.dart';
-import 'package:magic_pinecone_course_demo/features/course_selection/models/course_detail_models.dart';
-import 'package:magic_pinecone_course_demo/features/course_selection/models/course_schedule_models.dart';
-import 'package:magic_pinecone_course_demo/features/course_selection/presentation/course_selection_page.dart';
-import 'package:magic_pinecone_course_demo/features/course_selection/presentation/view_models/course_selection_controller.dart';
-import 'package:magic_pinecone_course_demo/features/settings/data/settings_repository.dart';
-import 'package:magic_pinecone_course_demo/features/settings/presentation/view_models/settings_view_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:magic_pinecone/core/app/app_theme.dart';
+import 'package:magic_pinecone/core/app/app_providers.dart';
+import 'package:magic_pinecone/core/app/app_backend_config.dart';
+import 'package:magic_pinecone/features/course_selection/data/course_repository.dart';
+import 'package:magic_pinecone/features/course_selection/data/course_selection_storage.dart';
+import 'package:magic_pinecone/features/course_selection/data/course_share_codec.dart';
+import 'package:magic_pinecone/features/course_selection/data/course_supplemental_detail_catalog.dart';
+import 'package:magic_pinecone/features/course_selection/domain/models/course_detail_models.dart';
+import 'package:magic_pinecone/features/course_selection/domain/models/course_schedule_models.dart';
+import 'package:magic_pinecone/features/course_selection/presentation/lite_course_selection_page.dart';
+import 'package:magic_pinecone/features/course_selection/presentation/view_models/course_selection_controller.dart';
+import 'package:magic_pinecone/features/settings/data/settings_repository.dart';
+import 'package:magic_pinecone/features/settings/presentation/view_models/settings_view_model.dart';
 
 void main() {
   testWidgets('shows the course selection app shell', (tester) async {
@@ -31,26 +34,32 @@ void main() {
         ),
       ),
     );
-    addTearDown(controller.dispose);
     final themeController = AppThemeController();
-    addTearDown(themeController.dispose);
+    final backendConfigController = AppBackendConfigController();
     final settingsViewModel = SettingsViewModel(
       appThemeController: themeController,
+      appBackendConfigController: backendConfigController,
       repository: const StaticSettingsRepository(),
     );
-    addTearDown(settingsViewModel.dispose);
 
     await tester.pumpWidget(
-      ValueListenableBuilder<ThemeMode>(
-        valueListenable: themeController,
-        builder: (context, themeMode, _) => MaterialApp(
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
-          themeMode: themeMode,
-          home: CourseSelectionPage(
-            controller: controller,
-            settingsViewModel: settingsViewModel,
-          ),
+      ProviderScope(
+        overrides: [
+          courseSelectionControllerProvider.overrideWith((ref) => controller),
+          settingsViewModelProvider.overrideWith((ref) => settingsViewModel),
+          appThemeControllerProvider.overrideWith((ref) => themeController),
+          appBackendConfigControllerProvider.overrideWith((ref) => backendConfigController),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            final themeMode = ref.watch(appThemeControllerProvider).value;
+            return MaterialApp(
+              theme: ThemeData.light(),
+              darkTheme: ThemeData.dark(),
+              themeMode: themeMode,
+              home: const LiteCourseSelectionPage(),
+            );
+          },
         ),
       ),
     );
@@ -109,28 +118,35 @@ void main() {
         ),
       ),
     );
-    addTearDown(controller.dispose);
     final themeController = AppThemeController();
-    addTearDown(themeController.dispose);
+    final backendConfigController = AppBackendConfigController();
     final settingsViewModel = SettingsViewModel(
       appThemeController: themeController,
+      appBackendConfigController: backendConfigController,
       repository: const StaticSettingsRepository(),
     );
-    addTearDown(settingsViewModel.dispose);
     final shareCode = const CourseShareCodec().encodeSerialNos(['00001']);
 
     await tester.pumpWidget(
-      ValueListenableBuilder<ThemeMode>(
-        valueListenable: themeController,
-        builder: (context, themeMode, _) => MaterialApp(
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
-          themeMode: themeMode,
-          home: CourseSelectionPage(
-            controller: controller,
-            initialShareCode: shareCode,
-            settingsViewModel: settingsViewModel,
-          ),
+      ProviderScope(
+        overrides: [
+          courseSelectionControllerProvider.overrideWith((ref) => controller),
+          settingsViewModelProvider.overrideWith((ref) => settingsViewModel),
+          appThemeControllerProvider.overrideWith((ref) => themeController),
+          appBackendConfigControllerProvider.overrideWith((ref) => backendConfigController),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            final themeMode = ref.watch(appThemeControllerProvider).value;
+            return MaterialApp(
+              theme: ThemeData.light(),
+              darkTheme: ThemeData.dark(),
+              themeMode: themeMode,
+              home: LiteCourseSelectionPage(
+                initialShareCode: shareCode,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -171,31 +187,38 @@ void main() {
           ),
         ),
       );
-      addTearDown(controller.dispose);
       final themeController = AppThemeController();
-      addTearDown(themeController.dispose);
+      final backendConfigController = AppBackendConfigController();
       final settingsViewModel = SettingsViewModel(
         appThemeController: themeController,
+        appBackendConfigController: backendConfigController,
         repository: const StaticSettingsRepository(),
       );
-      addTearDown(settingsViewModel.dispose);
       final storage = MemoryCourseSelectionStorage();
       const shareCodec = CourseShareCodec();
       await storage.writeShareCode(shareCodec.encodeSerialNos(['00001']));
 
       await tester.pumpWidget(
-        ValueListenableBuilder<ThemeMode>(
-          valueListenable: themeController,
-          builder: (context, themeMode, _) => MaterialApp(
-            theme: ThemeData.light(),
-            darkTheme: ThemeData.dark(),
-            themeMode: themeMode,
-            home: CourseSelectionPage(
-              controller: controller,
-              courseSelectionStorage: storage,
-              initialShareCode: shareCodec.encodeSerialNos(['00002']),
-              settingsViewModel: settingsViewModel,
-            ),
+        ProviderScope(
+          overrides: [
+            courseSelectionControllerProvider.overrideWith((ref) => controller),
+            settingsViewModelProvider.overrideWith((ref) => settingsViewModel),
+            appThemeControllerProvider.overrideWith((ref) => themeController),
+            appBackendConfigControllerProvider.overrideWith((ref) => backendConfigController),
+          ],
+          child: Consumer(
+            builder: (context, ref, _) {
+              final themeMode = ref.watch(appThemeControllerProvider).value;
+              return MaterialApp(
+                theme: ThemeData.light(),
+                darkTheme: ThemeData.dark(),
+                themeMode: themeMode,
+                home: LiteCourseSelectionPage(
+                  courseSelectionStorage: storage,
+                  initialShareCode: shareCodec.encodeSerialNos(['00002']),
+                ),
+              );
+            },
           ),
         ),
       );
@@ -235,26 +258,32 @@ void main() {
         ),
       ),
     );
-    addTearDown(controller.dispose);
     final themeController = AppThemeController();
-    addTearDown(themeController.dispose);
+    final backendConfigController = AppBackendConfigController();
     final settingsViewModel = SettingsViewModel(
       appThemeController: themeController,
+      appBackendConfigController: backendConfigController,
       repository: const StaticSettingsRepository(),
     );
-    addTearDown(settingsViewModel.dispose);
 
     await tester.pumpWidget(
-      ValueListenableBuilder<ThemeMode>(
-        valueListenable: themeController,
-        builder: (context, themeMode, _) => MaterialApp(
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
-          themeMode: themeMode,
-          home: CourseSelectionPage(
-            controller: controller,
-            settingsViewModel: settingsViewModel,
-          ),
+      ProviderScope(
+        overrides: [
+          courseSelectionControllerProvider.overrideWith((ref) => controller),
+          settingsViewModelProvider.overrideWith((ref) => settingsViewModel),
+          appThemeControllerProvider.overrideWith((ref) => themeController),
+          appBackendConfigControllerProvider.overrideWith((ref) => backendConfigController),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            final themeMode = ref.watch(appThemeControllerProvider).value;
+            return MaterialApp(
+              theme: ThemeData.light(),
+              darkTheme: ThemeData.dark(),
+              themeMode: themeMode,
+              home: const LiteCourseSelectionPage(),
+            );
+          },
         ),
       ),
     );
@@ -323,37 +352,43 @@ void main() {
         ),
       ),
     );
-    addTearDown(controller.dispose);
     final themeController = AppThemeController();
-    addTearDown(themeController.dispose);
+    final backendConfigController = AppBackendConfigController();
     final settingsViewModel = SettingsViewModel(
       appThemeController: themeController,
+      appBackendConfigController: backendConfigController,
       repository: const StaticSettingsRepository(),
     );
-    addTearDown(settingsViewModel.dispose);
+    final fakeDetailsRepo = const _FakeCourseSupplementalDetailRepository(
+      detail: CourseSupplementalDetail(
+        serialNo: '00001',
+        objectives: '',
+        content: '',
+        books: '',
+        teachingMethod: '',
+        gradingPolicy: '',
+      ),
+    );
 
     await tester.pumpWidget(
-      ValueListenableBuilder<ThemeMode>(
-        valueListenable: themeController,
-        builder: (context, themeMode, _) => MaterialApp(
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
-          themeMode: themeMode,
-          home: CourseSelectionPage(
-            controller: controller,
-            courseSupplementalDetailRepository:
-                const _FakeCourseSupplementalDetailRepository(
-                  detail: CourseSupplementalDetail(
-                    serialNo: '00001',
-                    objectives: '',
-                    content: '',
-                    books: '',
-                    teachingMethod: '',
-                    gradingPolicy: '',
-                  ),
-                ),
-            settingsViewModel: settingsViewModel,
-          ),
+      ProviderScope(
+        overrides: [
+          courseSelectionControllerProvider.overrideWith((ref) => controller),
+          settingsViewModelProvider.overrideWith((ref) => settingsViewModel),
+          appThemeControllerProvider.overrideWith((ref) => themeController),
+          appBackendConfigControllerProvider.overrideWith((ref) => backendConfigController),
+          courseSupplementalDetailRepositoryProvider.overrideWithValue(fakeDetailsRepo),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            final themeMode = ref.watch(appThemeControllerProvider).value;
+            return MaterialApp(
+              theme: ThemeData.light(),
+              darkTheme: ThemeData.dark(),
+              themeMode: themeMode,
+              home: const LiteCourseSelectionPage(),
+            );
+          },
         ),
       ),
     );
@@ -386,26 +421,32 @@ void main() {
         ),
       ),
     );
-    addTearDown(controller.dispose);
     final themeController = AppThemeController();
-    addTearDown(themeController.dispose);
+    final backendConfigController = AppBackendConfigController();
     final settingsViewModel = SettingsViewModel(
       appThemeController: themeController,
+      appBackendConfigController: backendConfigController,
       repository: const StaticSettingsRepository(),
     );
-    addTearDown(settingsViewModel.dispose);
 
     await tester.pumpWidget(
-      ValueListenableBuilder<ThemeMode>(
-        valueListenable: themeController,
-        builder: (context, themeMode, _) => MaterialApp(
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
-          themeMode: themeMode,
-          home: CourseSelectionPage(
-            controller: controller,
-            settingsViewModel: settingsViewModel,
-          ),
+      ProviderScope(
+        overrides: [
+          courseSelectionControllerProvider.overrideWith((ref) => controller),
+          settingsViewModelProvider.overrideWith((ref) => settingsViewModel),
+          appThemeControllerProvider.overrideWith((ref) => themeController),
+          appBackendConfigControllerProvider.overrideWith((ref) => backendConfigController),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            final themeMode = ref.watch(appThemeControllerProvider).value;
+            return MaterialApp(
+              theme: ThemeData.light(),
+              darkTheme: ThemeData.dark(),
+              themeMode: themeMode,
+              home: const LiteCourseSelectionPage(),
+            );
+          },
         ),
       ),
     );
